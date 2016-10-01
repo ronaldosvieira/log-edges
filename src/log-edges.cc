@@ -9,6 +9,7 @@ laplacian-of-gaussian filter.
  ============================================================================
  */
 #include <iostream>
+#include <string>
 #include <cstdio>
 #include <ctime>
 #include <cmath>
@@ -17,6 +18,10 @@ laplacian-of-gaussian filter.
 
 #define DEBUG 0
 #define printflush(s, ...) do {if (DEBUG) {printf(s, ##__VA_ARGS__); fflush(stdout);}} while (0)
+
+using std::cout;
+using std::endl;
+using std::string;
 
 static long get_nanos(void) {
     struct timespec ts;
@@ -107,23 +112,26 @@ int main(int argc, char* argv[]) {
 
 	if (argc != 2) {
 		if (my_rank == 0)
-			printf("Usage: %s (size of array >= 2*p)\n", argv[0]);
+			cout << "Usage: " << argv[0] << " (image path)" << endl;
 
 		MPI_Finalize();
 		return -1;
 	}
 
-	int amount = atoi(argv[1]);
+	string inImgPath = argv[1];
+	FILE *fp = fopen(inImgPath.c_str(), "rb");
 
-	if (amount < 0) {
+	if (!fp) {
 		if (my_rank == 0)
-			printf("Error: Size of array must be greater than zero.\n");
+			cout << "Error: image '" << inImgPath << "' not found." << endl;
 
 		MPI_Finalize();
 		return -1;
 	}
 	
-	inImg->Read("examples/lenaGray.png");
+	fclose(fp);
+	
+	inImg->Read(inImgPath.c_str());
 	outImg->Copy(inImg);
 	
 	inImg->AllocatePixelMatrix(&m, inImg->GetHeight(), inImg->GetWidth());
@@ -131,7 +139,26 @@ int main(int argc, char* argv[]) {
 
 	/* rank 0 creates and sends the array */
 	if (my_rank == 0) {
-		rand_nums = (int*) get_random_nums(amount);
+        for (int y = 0; y < inImg->GetHeight(); ++y) {
+            for (int x = 0; x < inImg->GetWidth(); ++x) {
+                int sum = 0;
+                int amount = 0;
+                
+                for (int j = -2; j <= 2; ++j) {
+                    for (int i = -2; i <= 2; ++i) {
+                        if (x - i >= 0 && x - i < inImg->GetWidth() 
+                            && y - j >= 0 && y - j < inImg->GetHeight()) {
+                            sum += 1 * inImg->GetGrayValue(x - i, y - j);
+                            amount += 1;
+                        }
+                    }
+                }
+                
+                m[y][x].value = sum / amount;
+            }
+        }
+	    
+		/*rand_nums = (int*) get_random_nums(amount);
 
 		printflush("%d: Created the array: [", my_rank);
 		for (i = 0; i < amount - 1; i++) {
@@ -148,17 +175,17 @@ int main(int argc, char* argv[]) {
 
         printflush("%d: End. Sum is %d\n", my_rank, sum);
         
-        printf("%d: Time elapsed: %ldns\n", my_rank, total_t);
+        printf("%d: Time elapsed: %ldns\n", my_rank, total_t);*/
 	/* other ranks receive the array from rank 0 */
 	} else {
-		MPI_Recv(&amount, 1, MPI_INT, MPI_ANY_SOURCE, 2, MPI_COMM_WORLD, &status);
+		/*MPI_Recv(&amount, 1, MPI_INT, MPI_ANY_SOURCE, 2, MPI_COMM_WORLD, &status);
 		rand_nums = (int *) malloc(sizeof(int) * amount);
 
 		MPI_Recv(&p, 1, MPI_INT, status.MPI_SOURCE, 3, MPI_COMM_WORLD, &status);
 		MPI_Recv(rand_nums, amount, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD, &status);
 		printflush("%d: Received %d-sized array from %d \n", my_rank, amount, status.MPI_SOURCE);
 
-		recSum(rand_nums, amount, p, my_rank, status.MPI_SOURCE);
+		recSum(rand_nums, amount, p, my_rank, status.MPI_SOURCE);*/
 	}
 	
 	outImg->SetDataAsMatrix(m);
