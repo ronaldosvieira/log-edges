@@ -13,6 +13,7 @@ laplacian-of-gaussian filter.
 #include <ctime>
 #include <cmath>
 #include "mpi.h"
+#include "pixelLab.h"
 
 #define DEBUG 0
 #define printflush(s, ...) do {if (DEBUG) {printf(s, ##__VA_ARGS__); fflush(stdout);}} while (0)
@@ -77,7 +78,7 @@ int recSum(int *rand_nums, int amount, int p, int my_rank, int parent_rank) {
 	}
 }
 
-int main(int argc, char* argv[]){
+int main(int argc, char* argv[]) {
 	srand(time(NULL));
 
 	int i;
@@ -86,6 +87,11 @@ int main(int argc, char* argv[]){
 	int my_rank; /* rank of process */
 	int p;       /* number of processes */
 	MPI_Status status;   /* return status for receive */
+	
+	PixelLab *inImg = new PixelLab(); /* input image */
+	PixelLab *outImg = new PixelLab(); /* output image */
+	
+	pixel **m;
 	
 	long start_t, end_t, total_t; /* time measure */
 
@@ -116,6 +122,12 @@ int main(int argc, char* argv[]){
 		MPI_Finalize();
 		return -1;
 	}
+	
+	inImg->Read("examples/lenaGray.png");
+	outImg->Copy(inImg);
+	
+	inImg->AllocatePixelMatrix(&m, inImg->GetHeight(), inImg->GetWidth());
+	inImg->GetDataAsMatrix(m);
 
 	/* rank 0 creates and sends the array */
 	if (my_rank == 0) {
@@ -148,8 +160,16 @@ int main(int argc, char* argv[]){
 
 		recSum(rand_nums, amount, p, my_rank, status.MPI_SOURCE);
 	}
+	
+	outImg->SetDataAsMatrix(m);
+	
+	inImg->DeallocatePixelMatrix(&m, inImg->GetHeight(), inImg->GetWidth());
+	
+	outImg->Save("examples/lenaGrayOut.png");
 
 	free(rand_nums);
+	free(inImg);
+	free(outImg);
 
 	/* shut down MPI */
 	MPI_Finalize(); 
