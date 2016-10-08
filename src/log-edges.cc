@@ -17,7 +17,7 @@ laplacian-of-gaussian filter.
 #include "pixelLab.h"
 #include "logcm.h"
 
-#define DEBUG 0
+#define DEBUG 1
 #define printflush(s, ...) do {if (DEBUG) {printf(s, ##__VA_ARGS__); fflush(stdout);}} while (0)
 
 using std::cout;
@@ -148,10 +148,10 @@ int main(int argc, char* argv[]) {
                 int sum = 0;
                 int amount = 0;
                 
-                for (int j = -2; j <= 2; ++j) {
-                    for (int i = -2; i <= 2; ++i) {
-                        if (isInBounds(x - i, y - j, inImg->GetWidth(), inImg->GetHeight())) {
-                            sum += 1 * inImg->GetGrayValue(x - i, y - j);
+                for (int j = 0; j < 5; ++j) {
+                    for (int i = 0; i < 5; ++i) {
+                        if (isInBounds(x + i - 2, y + j - 2, inImg->GetWidth(), inImg->GetHeight())) {
+                            sum += average[i][j] * inImg->GetGrayValue(x + i - 2, y + j - 2);
                             amount += 1;
                         }
                     }
