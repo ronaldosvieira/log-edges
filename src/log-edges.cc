@@ -151,13 +151,18 @@ int main(int argc, char* argv[]) {
                 for (int j = 0; j < 5; ++j) {
                     for (int i = 0; i < 5; ++i) {
                         if (isInBounds(x + i - 2, y + j - 2, inImg->GetWidth(), inImg->GetHeight())) {
-                            sum += average[i][j] * inImg->GetGrayValue(x + i - 2, y + j - 2);
-                            amount += 1;
+                            sum += lapOfGau[i][j] * inImg->GetGrayValue(x + i - 2, y + j - 2);
+                            amount += lapOfGau[i][j];
                         }
                     }
                 }
                 
-                m[y][x].value = sum / amount;
+                if (amount > 0) sum /= amount;
+                
+                if (sum > 255) sum = 255;
+                if (sum < 0) sum = 0;
+                
+                m[y][x].value = sum;
             }
         }
 	    
