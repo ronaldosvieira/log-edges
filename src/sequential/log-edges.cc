@@ -34,9 +34,36 @@ static long get_nanos(void) {
     return (long) ts.tv_sec * 1000000000L + ts.tv_nsec;
 }
 
-int main(int argc, char* argv[]) {
+void applyFilter(pixel **inMat, pixel **outMat, int w, int h) {
 	int sum, amount;
 	
+	/* for each pixel in the image */
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            sum = 0;
+            amount = 0;
+            
+            /* apply the kernel matrix */
+            for (int j = 0; j < 5; ++j) {
+                for (int i = 0; i < 5; ++i) {
+                    if (isInBounds(x + i - 2, y + j - 2, w, h)) {
+                        sum += lapOfGau[i][j] * inMat[y + j - 2][x + i - 2].value;
+                        amount += lapOfGau[i][j];
+                    }
+                }
+            }
+            
+            if (amount) sum /= amount;
+            
+            if (sum > 255) sum = 255;
+            if (sum < 0) sum = 0;
+            
+            outMat[y][x].value = sum;
+        }
+    }
+}
+
+int main(int argc, char* argv[]) {
 	PixelLab *inImg = new PixelLab(); /* input image */
 	PixelLab *outImg = new PixelLab(); /* output image */
 	
@@ -71,29 +98,9 @@ int main(int argc, char* argv[]) {
 	
 	/* starts timer */
 	start_t = get_nanos();
-
-    for (int y = 0; y < inImg->GetHeight(); ++y) {
-        for (int x = 0; x < inImg->GetWidth(); ++x) {
-            sum = 0;
-            amount = 0;
-            
-            for (int j = 0; j < 5; ++j) {
-                for (int i = 0; i < 5; ++i) {
-                    if (isInBounds(x + i - 2, y + j - 2, inImg->GetWidth(), inImg->GetHeight())) {
-                        sum += lapOfGau[i][j] * inMat[y + j - 2][x + i - 2].value;
-                        amount += lapOfGau[i][j];
-                    }
-                }
-            }
-            
-            if (amount) sum /= amount;
-            
-            if (sum > 255) sum = 255;
-            if (sum < 0) sum = 0;
-            
-            outMat[y][x].value = sum;
-        }
-    }
+	
+	/* applies filter */
+	applyFilter(inMat, outMat, inImg->GetWidth(), inImg->GetHeight());
     
     /* finishes timer */
     end_t = get_nanos();
