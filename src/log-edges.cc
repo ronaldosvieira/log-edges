@@ -15,6 +15,7 @@ laplacian-of-gaussian filter.
 #include <cmath>
 #include "mpi.h"
 #include "pixelLab.h"
+#include "logcm.h"
 
 #define DEBUG 0
 #define printflush(s, ...) do {if (DEBUG) {printf(s, ##__VA_ARGS__); fflush(stdout);}} while (0)
@@ -22,6 +23,10 @@ laplacian-of-gaussian filter.
 using std::cout;
 using std::endl;
 using std::string;
+
+bool isInBounds(int x, int y, int w, int h) {
+	return x >= 0 && x < w  && y >= 0 && y < h;
+}
 
 static long get_nanos(void) {
     struct timespec ts;
@@ -101,7 +106,6 @@ int main(int argc, char* argv[]) {
 	long start_t, end_t, total_t; /* time measure */
 
 	/* start up MPI */
-	
 	MPI_Init(&argc, &argv);
 	
 	/* find out process rank */
@@ -146,8 +150,7 @@ int main(int argc, char* argv[]) {
                 
                 for (int j = -2; j <= 2; ++j) {
                     for (int i = -2; i <= 2; ++i) {
-                        if (x - i >= 0 && x - i < inImg->GetWidth() 
-                            && y - j >= 0 && y - j < inImg->GetHeight()) {
+                        if (isInBounds(x - i, y - j, inImg->GetWidth(), inImg->GetHeight())) {
                             sum += 1 * inImg->GetGrayValue(x - i, y - j);
                             amount += 1;
                         }
