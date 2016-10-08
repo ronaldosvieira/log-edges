@@ -2,12 +2,12 @@
  ============================================================================
  Name        : log-edges.cc
  Author      : Ronaldo Vieira
- Version     : 0.0.1
+ Version     : 1.0.0
  Copyright   : MIT License
  Description : Edge detection in images using a parallel and distributed 
 laplacian-of-gaussian filter.
  ============================================================================
- */
+*/
 #include <iostream>
 #include <string>
 #include <cstdio>
@@ -24,14 +24,14 @@ using std::cout;
 using std::endl;
 using std::string;
 
-bool isInBounds(int x, int y, int w, int h) {
-	return x >= 0 && x < w  && y >= 0 && y < h;
-}
-
 static long get_nanos(void) {
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
     return (long) ts.tv_sec * 1000000000L + ts.tv_nsec;
+}
+
+bool isInBounds(int x, int y, int w, int h) {
+	return x >= 0 && x < w  && y >= 0 && y < h;
 }
 
 void applyFilter(pixel **inMat, pixel **outMat, int w, int h) {
