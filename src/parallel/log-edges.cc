@@ -74,10 +74,11 @@ int main(int argc, char* argv[]) {
 	PixelLab *inImg = new PixelLab(); /* input image */
 	PixelLab *outImg = new PixelLab(); /* output image */
 	
-	pixel **inMat;
 	int *outMat;
 	
 	long start_t, end_t, total_t; /* time measure */
+	
+	int start, end, startH, endH, sliceH;
 	
 	int rank; /* rank of process */
 	int p;       /* number of processes */
@@ -118,32 +119,44 @@ int main(int argc, char* argv[]) {
 		inImg->Read(inImgPath.c_str());
 		outImg->Copy(inImg);
 		
-		inImg->AllocatePixelMatrix(&inMat, inImg->GetHeight(), inImg->GetWidth());
-		inImg->GetDataAsMatrix(inMat);
+		int w = inImg->GetWidth();
+		int h = inImg->GetHeight();
+		int amount = w * h;
 		
-		outMat = (int*) 
-			malloc(sizeof(int) * inImg->GetHeight() * inImg->GetWidth());
+		outMat = (int*) malloc(sizeof(int) * amount);
 			
-		for (int y = 0; y < inImg->GetHeight(); y++) {
-			for (int x = 0; x < inImg->GetWidth(); x++) {
-				outMat[x + y * inImg->GetHeight()] = 
-					inImg->GetGrayValue(x, y);
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				outMat[x + y * h] = inImg->GetGrayValue(x, y);
 			}
 		}
 		
-		/*for (int i = 0; i < p; i++) {
+		/*for (int i = 1; i < p; i++) {
 			/* find out which part of the image to send */
-			/*int start = ((int) ((1.0 * outMat->GetHeight() / p) * my_rank));
-			int end = ((int) ((1.0 * GetHeight() / p) * (my_rank + 1)));
+			/*start = ((int) ((1.0 * amount / p) * i));
+			end = ((int) ((1.0 * amount / p) * (i + 1)));
 			
-			MPI_Send(outMat + start, end - start, MPI_INT, ,);
+			startH = ((int) ((1.0 * h / p) * i));
+			endH = ((int) ((1.0 * h / p) * (i + 1)));
+			sliceH = endH - startH;
+			
+			MPI_Send(&w, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+			MPI_Send(&sliceH, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
+			MPI_Send(outMat + start, end - start, MPI_INT, i, 2, MPI_COMM_WORLD);
 		}*/
+		
+		start = ((int) ((1.0 * amount / p) * rank));
+		end = ((int) ((1.0 * amount / p) * (rank + 1)));
+		
+		startH = ((int) ((1.0 * h / p) * rank));
+		endH = ((int) ((1.0 * h / p) * (rank + 1)));
+		sliceH = endH - startH;
 		
 		/* starts timer */
 		start_t = get_nanos();
 		
 		/* applies filter */
-		outMat = applyFilter(outMat, inImg->GetWidth(), inImg->GetHeight());
+		outMat = applyFilter(outMat, w, sliceH);
 		
 		/* finishes timer */
 		end_t = get_nanos();
@@ -151,13 +164,11 @@ int main(int argc, char* argv[]) {
 		total_t = end_t - start_t;
 		cout << "Time elapsed: " << total_t << "ns" << endl;
 
-		for (int y = 0; y < inImg->GetHeight(); y++) {
+		/*for (int y = 0; y < inImg->GetHeight(); y++) {
 			for (int x = 0; x < inImg->GetWidth(); x++) {
 				outImg->SetGrayValue(x, y, outMat[x + y * inImg->GetHeight()]);
 			}
-		}
-		
-		inImg->DeallocatePixelMatrix(&inMat, inImg->GetHeight(), inImg->GetWidth());
+		}*/
 		
 		outImg->Save("examples/lenaGrayOut.png");
 		
@@ -165,11 +176,15 @@ int main(int argc, char* argv[]) {
 		free(outImg);
 		free(outMat);
 	} else {
-		/* find out which part of the image to send */
-		/*int start = ((int) ((1.0 * outMat->GetHeight() / p) * my_rank));
-		int end = ((int) ((1.0 * GetHeight() / p) * (my_rank + 1)));*/
+		/*int w, h;
 		
+		MPI_Recv(&w, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+		MPI_Recv(&h, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
 		
+		int amount = w * h;
+		int *mat = (int*) malloc(sizeof(int) * amount);
+		
+		MPI_Recv(&mat, amount, MPI_INT, 0, 2, MPI_COMM_WORLD, &status);*/
 	}
 	
 	/* shuts down MPI */
