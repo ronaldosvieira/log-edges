@@ -48,8 +48,8 @@ int* applyFilter(int *orig, int w, int h) {
             /* apply the kernel matrix */
             for (int j = 0; j < 5; ++j) {
                 for (int i = 0; i < 5; ++i) {
-                	tempX = x + i - 2;
-                	tempY = y + j - 2;
+                	tempX = x + i - ((int) (5 / 2));
+                	tempY = y + j - ((int) (5 / 2));
                 	
                     if (isInBounds(tempX, tempY, w, h)) {
                         sum += lapOfGau[i][j] * orig[tempX + tempY * h];
@@ -76,19 +76,19 @@ int main(int argc, char* argv[]) {
 	
 	int *outMat;
 	
-	long start_t, end_t, total_t; /* time measure */
+	double start_t, end_t, total_t; /* time measure */
 	
-	int start, end, startH, endH, sliceH;
+	int slice, w, h, amount, *mat;
 	
 	int rank; /* rank of process */
-	int p;       /* number of processes */
-	MPI_Status status;   /* return status for receive */
+	int p; /* number of processes */
+	MPI_Status status; /* return status for receive */
 
 	/* start up MPI */
 	MPI_Init(&argc, &argv);
 	
 	/* find out process rank */
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	
 	/* find out number of processes */
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
@@ -119,9 +119,16 @@ int main(int argc, char* argv[]) {
 		inImg->Read(inImgPath.c_str());
 		outImg->Copy(inImg);
 		
-		int w = inImg->GetWidth();
-		int h = inImg->GetHeight();
-		int amount = w * h;
+		w = inImg->GetWidth();
+		h = inImg->GetHeight();
+		amount = w * h;
+		slice = amount / p;
+		
+		cout << "w = " << w << "; h = " << h << endl;
+		cout << "amount = " << amount << "; slice = " << slice << endl;
+		
+		/* starts timer */
+		start_t = MPI_Wtime();
 		
 		outMat = (int*) malloc(sizeof(int) * amount);
 			
@@ -130,45 +137,56 @@ int main(int argc, char* argv[]) {
 				outMat[x + y * h] = inImg->GetGrayValue(x, y);
 			}
 		}
-		
-		/*for (int i = 1; i < p; i++) {
-			/* find out which part of the image to send */
-			/*start = ((int) ((1.0 * amount / p) * i));
-			end = ((int) ((1.0 * amount / p) * (i + 1)));
+	}
+	
+	/* splits image */
+	if (rank == 0) {
+		for (int i = 1; i < p; i++) {
+			MPI_Send(&slice, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+			MPI_Send(&w, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
 			
-			startH = ((int) ((1.0 * h / p) * i));
-			endH = ((int) ((1.0 * h / p) * (i + 1)));
-			sliceH = endH - startH;
-			
-			MPI_Send(&w, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-			MPI_Send(&sliceH, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
-			MPI_Send(outMat + start, end - start, MPI_INT, i, 2, MPI_COMM_WORLD);
-		}*/
+			MPI_Send(outMat + (slice * i), slice, MPI_INT, i, 2, MPI_COMM_WORLD);
+		}
 		
-		start = ((int) ((1.0 * amount / p) * rank));
-		end = ((int) ((1.0 * amount / p) * (rank + 1)));
+		mat = outMat;
+	} else {
+		MPI_Recv(&slice, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+		MPI_Recv(&w, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
 		
-		startH = ((int) ((1.0 * h / p) * rank));
-		endH = ((int) ((1.0 * h / p) * (rank + 1)));
-		sliceH = endH - startH;
+		mat = (int*) malloc(sizeof(int) * slice);
 		
-		/* starts timer */
-		start_t = get_nanos();
+		MPI_Recv(mat, slice, MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
+	}
+	
+	/* applies filter */
+	mat = applyFilter(mat, w, slice / w);
+	
+	/* joins image */
+	if (rank == 0) {
+		// copy its own part into result matrix
+		memcpy(outMat, mat, sizeof(int) * slice);
 		
-		/* applies filter */
-		outMat = applyFilter(outMat, w, sliceH);
+		for (int i = 1; i < p; i++) {
+			MPI_Recv(mat, slice, MPI_INT, i, 3, MPI_COMM_WORLD, &status);
+		}
 		
-		/* finishes timer */
-		end_t = get_nanos();
-		
-		total_t = end_t - start_t;
-		cout << "Time elapsed: " << total_t << "ns" << endl;
-
-		/*for (int y = 0; y < inImg->GetHeight(); y++) {
+		int max, min;
+		for (int y = 0; y < inImg->GetHeight(); y++) {
 			for (int x = 0; x < inImg->GetWidth(); x++) {
 				outImg->SetGrayValue(x, y, outMat[x + y * inImg->GetHeight()]);
+				int value = outMat[x + y * inImg->GetHeight()];
+				if (value > max) max = value;
+				if (value < min) min = value;
 			}
-		}*/
+		}
+		
+		cout << max << ", " << min << endl;
+		
+		// finishes timer
+		end_t = MPI_Wtime();
+		
+		total_t = end_t - start_t;
+		cout << "Time elapsed: " << total_t << "s" << endl;
 		
 		outImg->Save("examples/lenaGrayOut.png");
 		
@@ -176,18 +194,10 @@ int main(int argc, char* argv[]) {
 		free(outImg);
 		free(outMat);
 	} else {
-		/*int w, h;
-		
-		MPI_Recv(&w, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
-		MPI_Recv(&h, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
-		
-		int amount = w * h;
-		int *mat = (int*) malloc(sizeof(int) * amount);
-		
-		MPI_Recv(&mat, amount, MPI_INT, 0, 2, MPI_COMM_WORLD, &status);*/
+		MPI_Send(mat, slice, MPI_INT, 0, 3, MPI_COMM_WORLD);
 	}
 	
-	/* shuts down MPI */
+	// shuts down MPI
 	MPI_Finalize();
 	
 	return 0;
