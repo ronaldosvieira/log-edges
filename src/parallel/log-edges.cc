@@ -140,7 +140,8 @@ int main(int argc, char* argv[]) {
 		width = origWidth;
 		height = origHeight / p;
 		
-		cout << "w = " << width << "; h = " << height << endl;
+		cout << "# of processes: " << p << endl;
+		cout << "Slice size: w = " << width << "; h = " << height << endl;
 		
 		/* starts timer */
 		start_t = MPI_Wtime();
