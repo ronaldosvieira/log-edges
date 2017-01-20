@@ -53,7 +53,7 @@ int* applyFilter(int *mat, int w, int h) {
                 	tempY = y + j - ((int) (5 / 2));
                 	
                     if (isInBounds(tempX, tempY, w, h)) {
-                        sum += lapOfGau[i][j] * orig[tempX + tempY * h];
+                        sum += lapOfGau[i][j] * orig[tempX + tempY * w];
                         amount += lapOfGau[i][j];
                     }
                 }
@@ -64,7 +64,7 @@ int* applyFilter(int *mat, int w, int h) {
             if (sum > 255) sum = 255;
             if (sum < 0) sum = 0;
             
-            mat[x + y * h] = sum;
+            mat[x + y * w] = sum;
         }
     }
     
