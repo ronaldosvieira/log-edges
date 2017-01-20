@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
 	
 	double start_t, end_t, total_t; /* time measure */
 	
-	int slice, w, h, amount, *mat;
+	int slice, width, height, amount, *mat;
 	
 	int rank; /* rank of process */
 	int p; /* number of processes */
@@ -93,6 +93,7 @@ int main(int argc, char* argv[]) {
 	/* find out number of processes */
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 
+	/* validates arguments */
 	if (argc != 2) {
 		if (rank == 0)
 			cout << "Usage: " << argv[0] << " (image path)" << endl;
@@ -119,12 +120,12 @@ int main(int argc, char* argv[]) {
 		inImg->Read(inImgPath.c_str());
 		outImg->Copy(inImg);
 		
-		w = inImg->GetWidth();
-		h = inImg->GetHeight();
-		amount = w * h;
+		width = inImg->GetWidth();
+		height = inImg->GetHeight();
+		amount = width * height;
 		slice = amount / p;
 		
-		cout << "w = " << w << "; h = " << h << endl;
+		cout << "w = " << width << "; h = " << height << endl;
 		cout << "amount = " << amount << "; slice = " << slice << endl;
 		
 		/* starts timer */
@@ -132,9 +133,9 @@ int main(int argc, char* argv[]) {
 		
 		outMat = (int*) malloc(sizeof(int) * amount);
 			
-		for (int y = 0; y < h; y++) {
-			for (int x = 0; x < w; x++) {
-				outMat[x + y * h] = inImg->GetGrayValue(x, y);
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				outMat[x + y * height] = inImg->GetGrayValue(x, y);
 			}
 		}
 	}
@@ -143,7 +144,7 @@ int main(int argc, char* argv[]) {
 	if (rank == 0) {
 		for (int i = 1; i < p; i++) {
 			MPI_Send(&slice, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-			MPI_Send(&w, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
+			MPI_Send(&width, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
 			
 			MPI_Send(outMat + (slice * i), slice, MPI_INT, i, 2, MPI_COMM_WORLD);
 		}
@@ -151,7 +152,7 @@ int main(int argc, char* argv[]) {
 		mat = outMat;
 	} else {
 		MPI_Recv(&slice, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
-		MPI_Recv(&w, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
+		MPI_Recv(&width, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
 		
 		mat = (int*) malloc(sizeof(int) * slice);
 		
@@ -159,7 +160,7 @@ int main(int argc, char* argv[]) {
 	}
 	
 	/* applies filter */
-	mat = applyFilter(mat, w, slice / w);
+	mat = applyFilter(mat, width, slice / width);
 	
 	/* joins image */
 	if (rank == 0) {
@@ -170,17 +171,11 @@ int main(int argc, char* argv[]) {
 			MPI_Recv(mat, slice, MPI_INT, i, 3, MPI_COMM_WORLD, &status);
 		}
 		
-		int max, min;
-		for (int y = 0; y < inImg->GetHeight(); y++) {
-			for (int x = 0; x < inImg->GetWidth(); x++) {
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
 				outImg->SetGrayValue(x, y, outMat[x + y * inImg->GetHeight()]);
-				int value = outMat[x + y * inImg->GetHeight()];
-				if (value > max) max = value;
-				if (value < min) min = value;
 			}
 		}
-		
-		cout << max << ", " << min << endl;
 		
 		// finishes timer
 		end_t = MPI_Wtime();
@@ -190,11 +185,14 @@ int main(int argc, char* argv[]) {
 		
 		outImg->Save("examples/lenaGrayOut.png");
 		
+		free(temp);
 		free(inImg);
 		free(outImg);
 		free(outMat);
 	} else {
 		MPI_Send(mat, slice, MPI_INT, 0, 3, MPI_COMM_WORLD);
+		
+		free(mat);
 	}
 	
 	// shuts down MPI
