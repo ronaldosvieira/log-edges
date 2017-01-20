@@ -167,8 +167,12 @@ int main(int argc, char* argv[]) {
 		// copy its own part into result matrix
 		memcpy(outMat, mat, sizeof(int) * slice);
 		
+		int* temp = (int*) malloc(sizeof(int) * slice);
+		
 		for (int i = 1; i < p; i++) {
-			MPI_Recv(mat, slice, MPI_INT, i, 3, MPI_COMM_WORLD, &status);
+			MPI_Recv(temp, slice, MPI_INT, MPI_ANY_TAG, 3, MPI_COMM_WORLD, &status);
+			
+			memcpy(outMat + (slice * status.MPI_SOURCE * 0), temp, sizeof(int) * slice);
 		}
 		
 		for (int y = 0; y < height; y++) {
