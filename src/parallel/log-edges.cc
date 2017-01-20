@@ -79,7 +79,9 @@ int main(int argc, char* argv[]) {
 	
 	double start_t, end_t, total_t; /* time measure */
 	
-	int slice, width, height, amount, *mat;
+	int origWidth, origHeight, /* original image size */
+		width, height, /* slice size */
+		*mat;
 	
 	int rank; /* rank of process */
 	int p; /* number of processes */
@@ -130,22 +132,22 @@ int main(int argc, char* argv[]) {
 		inImg->Read(inImgPath.c_str());
 		outImg->Copy(inImg);
 		
-		width = inImg->GetWidth();
-		height = inImg->GetHeight();
-		amount = width * height;
-		slice = amount / p;
+		origWidth = inImg->GetWidth();
+		origHeight = inImg->GetHeight();
+		
+		width = origWidth;
+		height = origHeight / p;
 		
 		cout << "w = " << width << "; h = " << height << endl;
-		cout << "amount = " << amount << "; slice = " << slice << endl;
 		
 		/* starts timer */
 		start_t = MPI_Wtime();
 		
-		outMat = (int*) malloc(sizeof(int) * amount);
+		outMat = (int*) malloc(sizeof(int) * origWidth * origWidth);
 			
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				outMat[x + y * height] = inImg->GetGrayValue(x, y);
+		for (int y = 0; y < origHeight; y++) {
+			for (int x = 0; x < origWidth; x++) {
+				outMat[x + y * origWidth] = inImg->GetGrayValue(x, y);
 			}
 		}
 	}
@@ -153,42 +155,41 @@ int main(int argc, char* argv[]) {
 	/* splits image */
 	if (rank == 0) {
 		for (int i = 1; i < p; i++) {
-			MPI_Send(&slice, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+			MPI_Send(&height, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
 			MPI_Send(&width, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
 			
-			MPI_Send(outMat + (slice * i), slice, MPI_INT, i, 2, MPI_COMM_WORLD);
+			MPI_Send(outMat + (width * height * i), width * height,
+				MPI_INT, i, 2, MPI_COMM_WORLD);
 		}
 		
 		mat = outMat;
 	} else {
-		MPI_Recv(&slice, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+		MPI_Recv(&height, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
 		MPI_Recv(&width, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
 		
-		mat = (int*) malloc(sizeof(int) * slice);
+		mat = (int*) malloc(sizeof(int) * width * height);
 		
-		MPI_Recv(mat, slice, MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
+		MPI_Recv(mat, width * height, MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
 	}
 	
 	/* applies filter */
-	applyFilter(mat, width, slice / width);
+	applyFilter(mat, width, height);
 	
 	/* joins image */
 	if (rank == 0) {
-		// copy its own part into result matrix
-		// memcpy(outMat, mat, sizeof(int) * slice);
-		// not needed anymore - same address
-		
-		int* temp = (int*) malloc(sizeof(int) * slice);
+		int* temp = (int*) malloc(sizeof(int) * width * height);
 		
 		for (int i = 1; i < p; i++) {
-			MPI_Recv(temp, slice, MPI_INT, MPI_ANY_TAG, 3, MPI_COMM_WORLD, &status);
+			MPI_Recv(temp, width * height, MPI_INT, 
+				MPI_ANY_TAG, 3, MPI_COMM_WORLD, &status);
 			
-			memcpy(outMat + (slice * status.MPI_SOURCE), temp, sizeof(int) * slice);
+			memcpy(outMat + (width * height * status.MPI_SOURCE), 
+				temp, sizeof(int) * width * height);
 		}
 		
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				outImg->SetGrayValue(x, y, outMat[x + y * inImg->GetHeight()]);
+		for (int y = 0; y < origHeight; y++) {
+			for (int x = 0; x < origWidth; x++) {
+				outImg->SetGrayValue(x, y, outMat[x + y * origWidth]);
 			}
 		}
 		
@@ -205,7 +206,7 @@ int main(int argc, char* argv[]) {
 		free(outImg);
 		free(outMat);
 	} else {
-		MPI_Send(mat, slice, MPI_INT, 0, 3, MPI_COMM_WORLD);
+		MPI_Send(mat, width * height, MPI_INT, 0, 3, MPI_COMM_WORLD);
 		
 		free(mat);
 	}
