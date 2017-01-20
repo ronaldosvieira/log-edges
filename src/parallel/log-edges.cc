@@ -31,17 +31,18 @@ static long get_nanos(void) {
 }
 
 bool isInBounds(int x, int y, int w, int h) {
-	return x >= 0 && x < w  && y >= 0 && y < h;
+	return x >= 0 && x < w && y >= 0 && y < h;
 }
 
-int* applyFilter(int *orig, int w, int h) {
+int* applyFilter(int *mat, int w, int h) {
 	int sum, amount, tempX, tempY;
 	
-	int *mod = (int*) malloc(sizeof(int) * w * h);
+	int *orig = (int*) malloc(sizeof(int) * w * h);
+	memcpy(orig, mat, sizeof(int) * w * h);
 	
 	/* for each pixel in the image */
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
+    for (int x = 0; x < w; ++x) {
+        for (int y = 0; y < h; ++y) {
             sum = 0;
             amount = 0;
             
@@ -63,11 +64,11 @@ int* applyFilter(int *orig, int w, int h) {
             if (sum > 255) sum = 255;
             if (sum < 0) sum = 0;
             
-            mod[x + y * h] = sum;
+            mat[x + y * h] = sum;
         }
     }
     
-    return mod;
+    free(orig);
 }
 
 int main(int argc, char* argv[]) {
@@ -160,19 +161,20 @@ int main(int argc, char* argv[]) {
 	}
 	
 	/* applies filter */
-	mat = applyFilter(mat, width, slice / width);
+	applyFilter(mat, width, slice / width);
 	
 	/* joins image */
 	if (rank == 0) {
 		// copy its own part into result matrix
-		memcpy(outMat, mat, sizeof(int) * slice);
+		// memcpy(outMat, mat, sizeof(int) * slice);
+		// not needed anymore - same address
 		
 		int* temp = (int*) malloc(sizeof(int) * slice);
 		
 		for (int i = 1; i < p; i++) {
 			MPI_Recv(temp, slice, MPI_INT, MPI_ANY_TAG, 3, MPI_COMM_WORLD, &status);
 			
-			memcpy(outMat + (slice * status.MPI_SOURCE * 0), temp, sizeof(int) * slice);
+			memcpy(outMat + (slice * status.MPI_SOURCE), temp, sizeof(int) * slice);
 		}
 		
 		for (int y = 0; y < height; y++) {
