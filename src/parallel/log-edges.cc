@@ -22,16 +22,14 @@ laplacian-of-gaussian filter.
 
 using std::cout;
 using std::endl;
+using std::min;
+using std::max;
 using std::string;
 
 static long get_nanos(void) {
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
     return (long) ts.tv_sec * 1000000000L + ts.tv_nsec;
-}
-
-bool isInBounds(int x, int y, int w, int h) {
-	return x >= 0 && x < w && y >= 0 && y < h;
 }
 
 int* applyFilter(int *mat, int w, int h) {
@@ -52,10 +50,11 @@ int* applyFilter(int *mat, int w, int h) {
                 	tempX = x + i - ((int) (5 / 2));
                 	tempY = y + j - ((int) (5 / 2));
                 	
-                    if (isInBounds(tempX, tempY, w, h)) {
-                        sum += lapOfGau[i][j] * orig[tempX + tempY * w];
-                        amount += lapOfGau[i][j];
-                    }
+                	tempX = min(max(tempX, 0), w - 1);
+                	tempY = min(max(tempY, 0), h - 1);
+                	
+                    sum += lapOfGau[i][j] * orig[tempX + tempY * w];
+                    amount += lapOfGau[i][j];
                 }
             }
             
