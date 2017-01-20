@@ -82,6 +82,9 @@ int main(int argc, char* argv[]) {
 	int origWidth, origHeight, /* original image size */
 		width, height, /* slice size */
 		*mat;
+		
+	int filterOffset = 2;
+	int startOffsetY, endOffsetY;
 	
 	int rank; /* rank of process */
 	int p; /* number of processes */
@@ -155,25 +158,42 @@ int main(int argc, char* argv[]) {
 	/* splits image */
 	if (rank == 0) {
 		for (int i = 1; i < p; i++) {
-			MPI_Send(&height, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-			MPI_Send(&width, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
+			startOffsetY = filterOffset;
+			endOffsetY = filterOffset;
 			
-			MPI_Send(outMat + (width * height * i), width * height,
+			if (height * i - startOffsetY < 0) startOffsetY = 0;
+			if (height * (i + 1) + endOffsetY > origHeight) endOffsetY = 0;
+			
+			MPI_Send(&width, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+			MPI_Send(&height, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
+			
+			MPI_Send(&startOffsetY, 1, MPI_INT, i, 8, MPI_COMM_WORLD);
+			MPI_Send(&endOffsetY, 1, MPI_INT, i, 9, MPI_COMM_WORLD);
+			
+			MPI_Send(outMat + (width * height * i) - (startOffsetY * width), 
+				width * (startOffsetY + height + endOffsetY),
 				MPI_INT, i, 2, MPI_COMM_WORLD);
 		}
 		
+		startOffsetY = 0;
+		endOffsetY = filterOffset;
+		
 		mat = outMat;
 	} else {
-		MPI_Recv(&height, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
-		MPI_Recv(&width, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
+		MPI_Recv(&width, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+		MPI_Recv(&height, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
 		
-		mat = (int*) malloc(sizeof(int) * width * height);
+		MPI_Recv(&startOffsetY, 1, MPI_INT, 0, 8, MPI_COMM_WORLD, &status);
+		MPI_Recv(&endOffsetY, 1, MPI_INT, 0, 9, MPI_COMM_WORLD, &status);
 		
-		MPI_Recv(mat, width * height, MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
+		mat = (int*) malloc(sizeof(int) * width * (startOffsetY + height + endOffsetY));
+		
+		MPI_Recv(mat, width * (startOffsetY + height + endOffsetY), 
+			MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
 	}
 	
 	/* applies filter */
-	applyFilter(mat, width, height);
+	applyFilter(mat, width, startOffsetY + height + endOffsetY);
 	
 	/* joins image */
 	if (rank == 0) {
@@ -206,7 +226,8 @@ int main(int argc, char* argv[]) {
 		free(outImg);
 		free(outMat);
 	} else {
-		MPI_Send(mat, width * height, MPI_INT, 0, 3, MPI_COMM_WORLD);
+		MPI_Send(mat + (startOffsetY * width), width * height, 
+			MPI_INT, 0, 3, MPI_COMM_WORLD);
 		
 		free(mat);
 	}
