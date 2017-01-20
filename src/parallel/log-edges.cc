@@ -158,11 +158,10 @@ int main(int argc, char* argv[]) {
 	/* splits image */
 	if (rank == 0) {
 		for (int i = 1; i < p; i++) {
-			startOffsetY = filterOffset;
-			endOffsetY = filterOffset;
-			
-			if (height * i - startOffsetY < 0) startOffsetY = 0;
-			if (height * (i + 1) + endOffsetY > origHeight) endOffsetY = 0;
+			startOffsetY = height * i - filterOffset < 0? 
+				0 : filterOffset;
+			endOffsetY = height * (i + 1) + filterOffset > origHeight? 
+				0 : filterOffset;
 			
 			MPI_Send(&width, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
 			MPI_Send(&height, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
