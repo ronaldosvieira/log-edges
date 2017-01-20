@@ -93,6 +93,15 @@ int main(int argc, char* argv[]) {
 	
 	/* find out number of processes */
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
+	
+	/* round down p to nearest power of 2 */
+	p = powf(2.0f, floorf(log2f(p)));
+	
+	/* kill unused processes */
+	if (rank >= p) {
+		MPI_Finalize();
+		return 0;
+	}
 
 	/* validates arguments */
 	if (argc != 2) {
