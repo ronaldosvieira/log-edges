@@ -25,6 +25,7 @@ using std::endl;
 using std::min;
 using std::max;
 using std::string;
+using std::memcpy;
 
 static long get_nanos(void) {
     struct timespec ts;
