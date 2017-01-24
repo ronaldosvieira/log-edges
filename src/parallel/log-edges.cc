@@ -10,6 +10,7 @@ laplacian-of-gaussian filter.
 */
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <cstdio>
 #include <ctime>
 #include <cmath>
