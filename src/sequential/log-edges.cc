@@ -83,6 +83,9 @@ int main(int argc, char* argv[]) {
 	int origWidth, origHeight, /* original image size */
 		width, height, /* slice size */
 		*mat;
+		
+	/* start up MPI */
+	MPI_Init(&argc, &argv);
 
 	/* validates arguments */
 	if (argc != 2) {
@@ -137,6 +140,8 @@ int main(int argc, char* argv[]) {
 	free(inImg);
 	free(outImg);
 	free(outMat);
+	
+	MPI_Finalize();
 	
 	return 0;
 }
