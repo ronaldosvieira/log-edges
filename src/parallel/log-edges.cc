@@ -177,7 +177,8 @@ int main(int argc, char* argv[]) {
 		}
 		
 		startOffsetY = 0;
-		endOffsetY = filterOffset;
+		endOffsetY = height + filterOffset <= origHeight?
+			filterOffset : 0;
 		
 		mat = outMat;
 	} else {
