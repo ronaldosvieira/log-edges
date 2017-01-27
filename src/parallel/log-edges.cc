@@ -14,6 +14,7 @@ laplacian-of-gaussian filter.
 #include <cstdio>
 #include <ctime>
 #include <cmath>
+#include <omp.h>
 #include "mpi.h"
 #include "pixelLab.h"
 #include "logcm.h"
@@ -35,22 +36,21 @@ static long get_nanos(void) {
 }
 
 int* applyFilter(int *mat, int w, int h) {
-	int sum, amount, tempX, tempY;
-	
 	int *orig = (int*) malloc(sizeof(int) * w * h);
 	memcpy(orig, mat, sizeof(int) * w * h);
 	
 	/* for each pixel in the image */
+	#pragma omp parallel for num_threads(4)
     for (int x = 0; x < w; ++x) {
         for (int y = 0; y < h; ++y) {
-            sum = 0;
-            amount = 0;
+            int sum = 0;
+            int amount = 0;
             
             /* apply the kernel matrix */
             for (int j = 0; j < 5; ++j) {
                 for (int i = 0; i < 5; ++i) {
-                	tempX = x + i - ((int) (5 / 2));
-                	tempY = y + j - ((int) (5 / 2));
+                	int tempX = x + i - ((int) (5 / 2));
+                	int tempY = y + j - ((int) (5 / 2));
                 	
                 	tempX = min(max(tempX, 0), w - 1);
                 	tempY = min(max(tempY, 0), h - 1);
