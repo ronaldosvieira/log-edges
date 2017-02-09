@@ -82,7 +82,7 @@ int* applyFilter(int *mat, int w, int h) {
 	for (int i = 0; i < num_threads; ++i) {
 		args[i].idt = i;
 		
-		args[i].width = w / num_threads;
+		args[i].width = w;
 		args[i].height = h;
 		
 		args[i].mat = mat;
