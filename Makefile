@@ -13,4 +13,5 @@ PARB = $(BINF)parallel
 
 all:
 	mpic++ $(FLAGS) $(SEQS)/log-edges.cc -o $(SEQB)/log-edges -I$(INCLF) -L$(LIBF) $(LIBS)
-	mpic++ $(FLAGS) $(PARS)/log-edges.cc -o $(PARB)/log-edges -I$(INCLF) -L$(LIBF) $(LIBS) -fopenmp
+	mpic++ $(FLAGS) $(PARS)/open-mp/log-edges.cc -o $(PARB)/open-mp/log-edges -I$(INCLF) -L$(LIBF) $(LIBS) -fopenmp
+	mpic++ $(FLAGS) $(PARS)/pthreads/log-edges.cc -o $(PARB)/pthreads/log-edges -I$(INCLF) -L$(LIBF) $(LIBS)
